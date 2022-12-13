@@ -1,30 +1,93 @@
-## Laravel Breeze: Tailwind Pages Skeleton
+# Soketi
 
-Laravel boilerplate repository to create simple demo-projects. It allows to quickly add new routes/pages, and has examples of a table page, and a form page.
+The server is built on top of [uWebSockets.js](https://github.com/uNetworking/uWebSockets.js) - a C application ported to Node.js. uWebSockets.js is demonstrated to perform at levels [8.5x that of Fastify](https://alexhultman.medium.com/serving-100k-requests-second-from-a-fanless-raspberry-pi-4-over-ethernet-fdd2c2e05a1e) and at least [10x that of Socket.IO](https://medium.com/swlh/100k-secure-websockets-with-raspberry-pi-4-1ba5d2127a23). ([source](https://github.com/uNetworking/uWebSockets.js))
 
-It uses the Starter Kit [Laravel Breeze](https://github.com/laravel/breeze) based on Tailwind framework.
+## Installing with NPM
 
-![Laravel Breeze Table page](https://laraveldaily.com/wp-content/uploads/2021/09/Screenshot-2021-09-19-at-09.51.38.png)
+> Node.js LTS (14.x, 16.x, 18.x) is required due to uWebSockets.js build limitations.
 
-![Laravel Breeze Form page](https://laraveldaily.com/wp-content/uploads/2021/09/Screenshot-2021-09-19-at-09.51.50.png)
+Soketi may be easily installed via the NPM CLI:
 
------
+```shell
+npm install -g @soketi/soketi
+```
 
-### How to use
+If installation fails with error code 128 as shown, delete `/root/.npm` folder and try again.
 
-- Clone the project with `git clone`
-- Copy `.env.example` file to `.env` and edit database credentials there
-- Run `composer install`
-- Run `php artisan key:generate`
-- Run `php artisan migrate --seed` (it has some seeded data for your testing)
-- That's it: launch the main URL
+```
+npm ERR! code 128
+npm ERR! An unknown git error occurred
+npm ERR! command git --no-replace-objects clone -b v20.10.0 ssh://git@github.com/uNetworking/uWebSockets.js.git /root/.npm/_cacache/tmp/git-cloneOvhFm4 --recurse-submodules --depth=1
+npm ERR! fatal: could not create leading directories of '/root/.npm/_cacache/tmp/git-cloneOvhFm4': Permission denied
+```
 
+After installation, a soketi server using the default configuration may be started using the start command:
 
----
+```shell
+soketi start
+```
+By default, this will start a server at `127.0.0.1:6001` with the following application credentials:
 
-## More from our LaravelDaily Team
+- App ID: `app-id`
+- App Key: `app-key`
+- Secret: `app-secret`
 
-- Enroll in our [Laravel Online Courses](https://laraveldaily.teachable.com/)
-- Check out our adminpanel generator [QuickAdminPanel](https://quickadminpanel.com)
-- Purchase our [Livewire Kit](https://livewirekit.com)
-- Subscribe to our [YouTube channel Laravel Daily](https://www.youtube.com/channel/UCTuplgOBi6tJIlesIboymGA)
+# Laravel Broadcasting
+
+When using [Laravel's event broadcasting](https://laravel.com/docs/9.x/broadcasting) feature within your application, soketi is even easier to configure. First, replace the default pusher configuration in your application's config/broadcasting.php file with the following configuration:
+
+```php
+'connections' => [
+
+    // ...
+
+    'pusher' => [
+        'driver' => 'pusher',
+        'key' => env('PUSHER_APP_KEY', 'app-key'),
+        'secret' => env('PUSHER_APP_SECRET', 'app-secret'),
+        'app_id' => env('PUSHER_APP_ID', 'app-id'),
+        'options' => [
+            'host' => env('PUSHER_HOST', '127.0.0.1'),
+            'port' => env('PUSHER_PORT', 6001),
+            'scheme' => env('PUSHER_SCHEME', 'http'),
+            'encrypted' => true,
+            'useTLS' => env('PUSHER_SCHEME') === 'https',
+        ],
+    ],
+],
+```
+
+To broadcast events using Pusher Channels, we need to install the Pusher Channels PHP SDK using the Composer package manager:
+
+```shell
+composer require pusher/pusher-php-server
+```
+
+# Laravel Echo
+
+To configure client side we need to install Laravel Echo ant PusherJS libraries:
+
+```shell
+npm install laravel-echo pusher-js -D
+```
+
+Laravel Echo is compatible with the PusherJS library. Therefore, its configuration resembles the typical configuration of a PusherJS client such as the example configuration in the previous section of documentation:
+
+```
+import Echo from 'laravel-echo';
+import Pusher from 'pusher-js';
+
+window.Pusher = Pusher;
+
+window.Echo = new Echo({
+    broadcaster: 'pusher',
+    key: import.meta.env.VITE_PUSHER_APP_KEY,
+    wsHost: import.meta.env.VITE_PUSHER_HOST ?? `ws-${import.meta.env.VITE_PUSHER_APP_CLUSTER}.pusher.com`,
+    wsPort: import.meta.env.VITE_PUSHER_PORT ?? 80,
+    wssPort: import.meta.env.VITE_PUSHER_PORT ?? 443,
+    forceTLS: (import.meta.env.VITE_PUSHER_SCHEME ?? 'https') === 'https',
+    enabledTransports: ['ws', 'wss']
+});
+```
+
+> Make sure that enabledTransports is set to ['ws', 'wss']. If not set, in case of connection failure, the client will try other transports such as XHR polling, which soketi doesn't support.
