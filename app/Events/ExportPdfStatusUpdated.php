@@ -10,6 +10,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Arr;
 
 class ExportPdfStatusUpdated implements ShouldBroadcast
 {
@@ -19,15 +20,18 @@ class ExportPdfStatusUpdated implements ShouldBroadcast
 
     public string $message;
 
+    public $link;
+
     /**
      * Create a new event instance.
      *
      * @return void
      */
-    public function __construct(User $user, string $message)
+    public function __construct(User $user, array $payload)
     {
         $this->user    = $user;
-        $this->message = $message;
+        $this->message = Arr::pull($payload, 'message');
+        $this->link    = Arr::pull($payload, 'link');
     }
 
     /**

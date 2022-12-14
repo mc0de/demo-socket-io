@@ -91,3 +91,46 @@ window.Echo = new Echo({
 ```
 
 > Make sure that enabledTransports is set to ['ws', 'wss']. If not set, in case of connection failure, the client will try other transports such as XHR polling, which soketi doesn't support.
+
+## Excluding event recipients
+
+In some situations, you want to stop the client that broadcasts an event from receiving it.
+
+Each pusher connection is assigned a unique `socket_id` which can be accessed via
+
+```
+channel.pusher.connection.socket_id
+```
+
+Once the `socket_id` has been accessed it can be used when triggering an event on the server by passing it to the server.
+
+```
+button.addEventListener('click', function () {
+  axios.post('/api/my-action', {
+    socket_id: channel.pusher.connection.socket_id
+  });
+});
+```
+
+When you trigger an event from the server passing a `socket_id`, the Channels connection (client) with that `socket_id` will be excluded from receiving the event.
+
+```
+$payload = [
+    'socket' => $request->socket_id
+];
+
+broadcast(new MyEvent($payload))->toOthers();
+```
+
+MyEvent might look like this:
+
+```
+use Illuminate\Support\Arr;
+
+public $socket;
+
+public function __construct(array $payload)
+{
+    $this->socket = Arr::pull($payload, 'socket');
+}
+```
